@@ -9,10 +9,10 @@ import kotlin.random.Random
 class MailRepository(private val api: MailTmApi = MailClient.api) {
 
     suspend fun createAccount(): AccountData = withContext(Dispatchers.IO) {
-        val domains = api.getDomains().domains.filter {
-            it.isActive == true && !it.domain.isNullOrBlank()
-        }
-        val domain = domains.firstOrNull()?.domain
+        val allDomains = MailParser.domains(api.getDomains())
+            .filter { !it.domain.isNullOrBlank() }
+        val domain = allDomains.firstOrNull { it.isActive == true }?.domain
+            ?: allDomains.firstOrNull()?.domain
             ?: throw IOException("Сервис не вернул доступных доменов")
 
         var lastError: Throwable? = null
@@ -22,8 +22,10 @@ class MailRepository(private val api: MailTmApi = MailClient.api) {
             val password = randomPassword()
             val address = "$login@$domain"
             try {
-                val created = api.createAccount(
-                    CreateAccountRequest(address = address, password = password)
+                val created = MailParser.account(
+                    api.createAccount(
+                        CreateAccountRequest(address = address, password = password)
+                    )
                 )
                 val accountId = created.id
                     ?: throw IOException("Сервер не вернул идентификатор ящика")
@@ -37,6 +39,13 @@ class MailRepository(private val api: MailTmApi = MailClient.api) {
             } catch (e: HttpException) {
                 lastError = e
                 if (e.code() != 422 && e.code() != 429) throw e
+            } catch (e: IOException) {
+                // Повторяем только при конфликте адреса, остальное — сразу наверх.
+                if (e.message?.contains("exists", ignoreCase = true) == true) {
+                    lastError = e
+                } else {
+                    throw e
+                }
             }
         }
 
@@ -44,17 +53,17 @@ class MailRepository(private val api: MailTmApi = MailClient.api) {
     }
 
     suspend fun obtainToken(address: String, password: String): String = withContext(Dispatchers.IO) {
-        api.getToken(TokenRequest(address = address, password = password)).token
-            ?.takeIf { it.isNotBlank() }
-            ?: throw IOException("Сервер не вернул токен авторизации")
+        MailParser.token(
+            api.getToken(TokenRequest(address = address, password = password))
+        )
     }
 
     suspend fun fetchMessages(token: String): List<MessageSummary> = withContext(Dispatchers.IO) {
-        api.getMessages(bearer(token)).messages
+        MailParser.messages(api.getMessages(bearer(token)))
     }
 
     suspend fun fetchMessage(token: String, id: String): MessageDetail = withContext(Dispatchers.IO) {
-        api.getMessage(bearer(token), id)
+        MailParser.message(api.getMessage(bearer(token), id))
     }
 
     suspend fun deleteAccount(token: String, id: String) {

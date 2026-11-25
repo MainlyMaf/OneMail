@@ -2,6 +2,7 @@ package com.onemail.app.data
 
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonElement
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
@@ -18,24 +19,24 @@ import java.util.concurrent.TimeUnit
 interface MailTmApi {
 
     @GET("domains")
-    suspend fun getDomains(): DomainsResponse
+    suspend fun getDomains(): JsonElement
 
     @POST("accounts")
-    suspend fun createAccount(@Body body: CreateAccountRequest): AccountResponse
+    suspend fun createAccount(@Body body: CreateAccountRequest): JsonElement
 
     @POST("token")
-    suspend fun getToken(@Body body: TokenRequest): TokenResponse
+    suspend fun getToken(@Body body: TokenRequest): JsonElement
 
     @GET("messages")
     suspend fun getMessages(
         @Header("Authorization") authorization: String
-    ): MessagesResponse
+    ): JsonElement
 
     @GET("messages/{id}")
     suspend fun getMessage(
         @Header("Authorization") authorization: String,
         @Path("id") id: String
-    ): MessageDetail
+    ): JsonElement
 
     @DELETE("accounts/{id}")
     suspend fun deleteAccount(
@@ -62,7 +63,7 @@ object MailClient {
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
                     .header("Accept", "application/json")
-                    .header("User-Agent", "OneMail/1.0 (Android)")
+                    .header("User-Agent", "OneMail/1.1 (Android)")
                     .build()
                 chain.proceed(request)
             }
