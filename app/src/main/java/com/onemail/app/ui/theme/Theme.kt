@@ -73,7 +73,7 @@ fun OneMailTheme(content: @Composable () -> Unit) {
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as? Activity)?.window ?: return@SideEffect
-            window.statusBarColor = Color.TRANSPARENT
+            window.statusBarColor = Color.Transparent.toArgb()
             window.navigationBarColor = Background.toArgb()
             WindowCompat.getInsetsController(window, view).apply {
                 isAppearanceLightStatusBars = false
